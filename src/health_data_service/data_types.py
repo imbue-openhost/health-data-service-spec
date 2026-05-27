@@ -17,66 +17,52 @@ from typing import Any
 import attr
 import attrs
 
+## Samples
 
 @attr.s(auto_attribs=True, frozen=True)
-class MetricType:
-    """A metric the provider can serve."""
+class Sample[T]:
+    timestamp: datetime
+    value: T
 
-    # Identifier used in queries, e.g. "heart_rate"
-    name: str
 
-    # Human-readable label, e.g. "Heart Rate"
+@attr.s(auto_attribs=True, frozen=True)
+class IntervalSample[T](Sample[T]):
+    # this sample covers the interval [timestamp, end_timestamp)
+    end_timestamp: datetime
+
+
+## Metrics
+
+@attr.s(auto_attribs=True, frozen=True)
+class ScalarMetric[T]:
+    """A single metric with no timestamp, usually associated with a container."""
+    # Metric identifier, e.g. "heart_rate"
+    metric_id: str
     display_name: str
 
-    # Unit of measurement, e.g. "bpm", "ms", "%"
-    unit: str
+    # Unit of measurement, e.g. "bpm"
+    unit: str | None
 
+    value: T
 
-@attr.s(auto_attribs=True, frozen=True)
-class Sample:
-    """A single numeric measurement at a point or interval in time."""
-
-    timestamp: datetime
-
-    value: float
-
-    # If set, this sample covers the interval [timestamp, end_timestamp)
-    end_timestamp: datetime | None = None
+    # Data source identifier, e.g. "oura", "apple_watch", etc
+    source: str
 
 
 @attr.s(auto_attribs=True, frozen=True)
 class TimeSeries:
     """A sequence of samples for one metric."""
-
     # Metric identifier, e.g. "heart_rate"
-    metric: str
+    metric_id: str
+    display_name: str
 
     # Unit of measurement, e.g. "bpm"
-    unit: str
+    unit: str | None
 
     samples: list[Sample]
 
-    # Data source identifier, e.g. "oura", "apple_health"
-    source: str | None = None
-
-
-class SleepStage(str, Enum):
-    DEEP = "deep"
-    LIGHT = "light"
-    REM = "rem"
-    AWAKE = "awake"
-    UNKNOWN = "unknown"
-
-
-@attr.s(auto_attribs=True, frozen=True)
-class SleepStageInterval:
-    """A contiguous period spent in one sleep stage."""
-
-    # One of the SleepStage values
-    stage: str
-
-    start: datetime
-    end: datetime
+    # Data source identifier, e.g. "oura", "apple_watch", etc
+    source: str
 
 
 @attr.s(auto_attribs=True, frozen=True)
@@ -84,26 +70,9 @@ class Container:
     """Groups metrics together that are derived from a single event, eg a sleep session or workout."""
     start: datetime
     end: datetime
-    scalars:  dict[str, Any] = attrs.Factory(dict)
-    time_series: dict[str, float] = attrs.Factory(dict)
+    # scalars:  dict[str, Any]
+    # time_series: dict[str, float]
 
-@attr.s(auto_attribs=True, frozen=True)
-class SleepSession(Container):
-    """A complete sleep event (one night or nap)."""
-    stages: list[SleepStageInterval] = attrs.Factory(list)
-
-    # Summary metrics for this session. Common keys:
-    #   total_sleep_duration (seconds), deep_sleep_duration (seconds),
-    #   light_sleep_duration (seconds), rem_sleep_duration (seconds),
-    #   awake_time (seconds), time_in_bed (seconds),
-    #   efficiency (percent 0-100), latency (seconds),
-    #   average_heart_rate (bpm), lowest_heart_rate (bpm),
-    #   average_hrv (ms), average_breath (breaths/min),
-    #   sleep_score (0-100, source-specific)
-    metrics: dict[str, float] = attrs.Factory(dict)
-
-    source: str | None = None
-    id: str | None = None
 
 
 class WorkoutType(str, Enum):
