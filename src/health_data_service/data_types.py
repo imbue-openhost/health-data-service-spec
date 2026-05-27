@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
+from typing import Any
 
 import attr
 import attrs
@@ -79,15 +80,16 @@ class SleepStageInterval:
 
 
 @attr.s(auto_attribs=True, frozen=True)
-class SleepSession:
-    """A complete sleep event (one night or nap)."""
-
-    # Typically bedtime
+class Container:
+    """Groups metrics together that are derived from a single event, eg a sleep session or workout."""
     start: datetime
-
-    # Typically wake time
     end: datetime
+    scalars:  dict[str, Any] = attrs.Factory(dict)
+    time_series: dict[str, float] = attrs.Factory(dict)
 
+@attr.s(auto_attribs=True, frozen=True)
+class SleepSession(Container):
+    """A complete sleep event (one night or nap)."""
     stages: list[SleepStageInterval] = attrs.Factory(list)
 
     # Summary metrics for this session. Common keys:
