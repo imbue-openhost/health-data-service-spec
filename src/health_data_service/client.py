@@ -20,18 +20,28 @@ from __future__ import annotations
 import os
 from types import TracebackType
 
+import attrs
 import httpx
 
 from .types import (
     MetricType,
+    Sample,
     SleepSession,
+    SleepStageInterval,
     TimeSeries,
     Workout,
-    metric_type_from_dict,
-    sleep_session_from_dict,
-    time_series_from_dict,
-    workout_from_dict,
 )
+
+
+def _struct(cls, d: dict):
+    """Recursively build an attrs instance from a dict."""
+    fields = {a.name: a for a in attrs.fields(cls)}
+    kw = {}
+    for k, v in d.items():
+        if k not in fields:
+            continue
+        kw[k] = v
+    return cls(**kw)
 
 
 class HealthDataClient:
@@ -76,10 +86,9 @@ class HealthDataClient:
         return self._client
 
     async def list_metrics(self) -> list[MetricType]:
-        """List metrics the provider can serve."""
         resp = await self._http.get("/v1/metrics")
         resp.raise_for_status()
-        return [metric_type_from_dict(m) for m in resp.json()["metrics"]]
+        return [_struct(MetricType, m) for m in resp.json()["metrics"]]
 
     async def get_time_series(
         self,
@@ -89,14 +98,6 @@ class HealthDataClient:
         end: str | None = None,
         limit: int | None = None,
     ) -> TimeSeries:
-        """Query time-series samples for a metric.
-
-        Args:
-            metric: Metric identifier (e.g. ``"heart_rate"``).
-            start: ISO 8601 UTC lower bound (inclusive).
-            end: ISO 8601 UTC upper bound (inclusive).
-            limit: Maximum number of samples to return.
-        """
         params: dict = {"metric": metric}
         if start:
             params["start"] = start
@@ -106,7 +107,13 @@ class HealthDataClient:
             params["limit"] = limit
         resp = await self._http.get("/v1/time-series", params=params)
         resp.raise_for_status()
-        return time_series_from_dict(resp.json())
+        body = resp.json()
+        return TimeSeries(
+            metric=body["metric"],
+            unit=body["unit"],
+            samples=[_struct(Sample, s) for s in body.get("samples", [])],
+            source=body.get("source"),
+        )
 
     async def get_sleep_sessions(
         self,
@@ -115,13 +122,6 @@ class HealthDataClient:
         end: str | None = None,
         limit: int | None = None,
     ) -> list[SleepSession]:
-        """Query sleep sessions.
-
-        Args:
-            start: ISO 8601 UTC lower bound on session start (inclusive).
-            end: ISO 8601 UTC upper bound on session end (inclusive).
-            limit: Maximum number of sessions to return.
-        """
         params: dict = {}
         if start:
             params["start"] = start
@@ -131,7 +131,14 @@ class HealthDataClient:
             params["limit"] = limit
         resp = await self._http.get("/v1/sleep-sessions", params=params)
         resp.raise_for_status()
-        return [sleep_session_from_dict(s) for s in resp.json()["data"]]
+        results = []
+        for d in resp.json()["data"]:
+            stages = [_struct(SleepStageInterval, s) for s in d.get("stages", [])]
+            results.append(SleepSession(
+                start=d["start"], end=d["end"], stages=stages,
+                metrics=d.get("metrics", {}), source=d.get("source"), id=d.get("id"),
+            ))
+        return results
 
     async def get_workouts(
         self,
@@ -141,14 +148,6 @@ class HealthDataClient:
         end: str | None = None,
         limit: int | None = None,
     ) -> list[Workout]:
-        """Query workout sessions.
-
-        Args:
-            workout_type: Filter by workout type (e.g. ``"running"``).
-            start: ISO 8601 UTC lower bound on workout start (inclusive).
-            end: ISO 8601 UTC upper bound on workout end (inclusive).
-            limit: Maximum number of workouts to return.
-        """
         params: dict = {}
         if workout_type:
             params["type"] = workout_type
@@ -160,4 +159,4 @@ class HealthDataClient:
             params["limit"] = limit
         resp = await self._http.get("/v1/workouts", params=params)
         resp.raise_for_status()
-        return [workout_from_dict(w) for w in resp.json()["data"]]
+        return [_struct(Workout, w) for w in resp.json()["data"]]
