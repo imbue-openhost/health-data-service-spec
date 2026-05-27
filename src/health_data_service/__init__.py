@@ -1,4 +1,4 @@
-from .types import (
+from .data_types import (
     MetricType,
     Sample,
     SleepSession,
@@ -8,6 +8,11 @@ from .types import (
     Workout,
     WorkoutType,
 )
+from .request_types import (
+    SleepSessionsRequest,
+    TimeSeriesRequest,
+    WorkoutsRequest,
+)
 from .client import HealthDataClient
 
 __all__ = [
@@ -15,9 +20,12 @@ __all__ = [
     "MetricType",
     "Sample",
     "SleepSession",
+    "SleepSessionsRequest",
     "SleepStage",
     "SleepStageInterval",
     "TimeSeries",
+    "TimeSeriesRequest",
     "Workout",
     "WorkoutType",
+    "WorkoutsRequest",
 ]

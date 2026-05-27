@@ -3,11 +3,12 @@
 Usage::
 
     from health_data_service import HealthDataClient
+    from health_data_service.request_types import TimeSeriesRequest
 
     async with HealthDataClient() as client:
-        hr = await client.get_time_series("heart_rate", start="2026-05-20T00:00:00+00:00")
-        sessions = await client.get_sleep_sessions(start="2026-05-24T00:00:00+00:00")
-        runs = await client.get_workouts(workout_type="running", limit=10)
+        hr = await client.get_time_series(TimeSeriesRequest(metric="heart_rate", start=...))
+        sessions = await client.get_sleep_sessions(SleepSessionsRequest(start=...))
+        runs = await client.get_workouts(WorkoutsRequest(workout_type="running", limit=10))
 
 By default reads ``OPENHOST_ROUTER_URL`` and ``OPENHOST_APP_TOKEN`` from the
 environment (set automatically inside OpenHost containers). The service
@@ -23,13 +24,18 @@ from types import TracebackType
 
 import httpx
 
-from .types import (
+from .data_types import (
     MetricType,
     Sample,
     SleepSession,
     SleepStageInterval,
     TimeSeries,
     Workout,
+)
+from .request_types import (
+    SleepSessionsRequest,
+    TimeSeriesRequest,
+    WorkoutsRequest,
 )
 
 
@@ -87,22 +93,8 @@ class HealthDataClient:
         resp.raise_for_status()
         return [MetricType(**m) for m in resp.json()["metrics"]]
 
-    async def get_time_series(
-        self,
-        metric: str,
-        *,
-        start: str | None = None,
-        end: str | None = None,
-        limit: int | None = None,
-    ) -> TimeSeries:
-        params: dict = {"metric": metric}
-        if start:
-            params["start"] = start
-        if end:
-            params["end"] = end
-        if limit is not None:
-            params["limit"] = limit
-        resp = await self._http.get("/v1/time-series", params=params)
+    async def get_time_series(self, req: TimeSeriesRequest) -> TimeSeries:
+        resp = await self._http.get("/v1/time-series", params=req.to_params())
         resp.raise_for_status()
         body = resp.json()
         return TimeSeries(
@@ -119,21 +111,8 @@ class HealthDataClient:
             source=body.get("source"),
         )
 
-    async def get_sleep_sessions(
-        self,
-        *,
-        start: str | None = None,
-        end: str | None = None,
-        limit: int | None = None,
-    ) -> list[SleepSession]:
-        params: dict = {}
-        if start:
-            params["start"] = start
-        if end:
-            params["end"] = end
-        if limit is not None:
-            params["limit"] = limit
-        resp = await self._http.get("/v1/sleep-sessions", params=params)
+    async def get_sleep_sessions(self, req: SleepSessionsRequest) -> list[SleepSession]:
+        resp = await self._http.get("/v1/sleep-sessions", params=req.to_params())
         resp.raise_for_status()
         results = []
         for d in resp.json()["data"]:
@@ -149,24 +128,8 @@ class HealthDataClient:
             ))
         return results
 
-    async def get_workouts(
-        self,
-        *,
-        workout_type: str | None = None,
-        start: str | None = None,
-        end: str | None = None,
-        limit: int | None = None,
-    ) -> list[Workout]:
-        params: dict = {}
-        if workout_type:
-            params["type"] = workout_type
-        if start:
-            params["start"] = start
-        if end:
-            params["end"] = end
-        if limit is not None:
-            params["limit"] = limit
-        resp = await self._http.get("/v1/workouts", params=params)
+    async def get_workouts(self, req: WorkoutsRequest) -> list[Workout]:
+        resp = await self._http.get("/v1/workouts", params=req.to_params())
         resp.raise_for_status()
         return [
             Workout(
