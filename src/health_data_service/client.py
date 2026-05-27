@@ -18,9 +18,9 @@ different ``[[services.v2.consumes]].shortname``.
 from __future__ import annotations
 
 import os
+from datetime import datetime
 from types import TracebackType
 
-import attrs
 import httpx
 
 from .types import (
@@ -33,15 +33,12 @@ from .types import (
 )
 
 
-def _struct(cls, d: dict):
-    """Recursively build an attrs instance from a dict."""
-    fields = {a.name: a for a in attrs.fields(cls)}
-    kw = {}
-    for k, v in d.items():
-        if k not in fields:
-            continue
-        kw[k] = v
-    return cls(**kw)
+def _ts(s: str) -> datetime:
+    return datetime.fromisoformat(s)
+
+
+def _ts_opt(s: str | None) -> datetime | None:
+    return datetime.fromisoformat(s) if s else None
 
 
 class HealthDataClient:
@@ -88,7 +85,7 @@ class HealthDataClient:
     async def list_metrics(self) -> list[MetricType]:
         resp = await self._http.get("/v1/metrics")
         resp.raise_for_status()
-        return [_struct(MetricType, m) for m in resp.json()["metrics"]]
+        return [MetricType(**m) for m in resp.json()["metrics"]]
 
     async def get_time_series(
         self,
@@ -111,7 +108,14 @@ class HealthDataClient:
         return TimeSeries(
             metric=body["metric"],
             unit=body["unit"],
-            samples=[_struct(Sample, s) for s in body.get("samples", [])],
+            samples=[
+                Sample(
+                    timestamp=_ts(s["timestamp"]),
+                    value=s["value"],
+                    end_timestamp=_ts_opt(s.get("end_timestamp")),
+                )
+                for s in body.get("samples", [])
+            ],
             source=body.get("source"),
         )
 
@@ -133,9 +137,14 @@ class HealthDataClient:
         resp.raise_for_status()
         results = []
         for d in resp.json()["data"]:
-            stages = [_struct(SleepStageInterval, s) for s in d.get("stages", [])]
+            stages = [
+                SleepStageInterval(
+                    stage=s["stage"], start=_ts(s["start"]), end=_ts(s["end"]),
+                )
+                for s in d.get("stages", [])
+            ]
             results.append(SleepSession(
-                start=d["start"], end=d["end"], stages=stages,
+                start=_ts(d["start"]), end=_ts(d["end"]), stages=stages,
                 metrics=d.get("metrics", {}), source=d.get("source"), id=d.get("id"),
             ))
         return results
@@ -159,4 +168,11 @@ class HealthDataClient:
             params["limit"] = limit
         resp = await self._http.get("/v1/workouts", params=params)
         resp.raise_for_status()
-        return [_struct(Workout, w) for w in resp.json()["data"]]
+        return [
+            Workout(
+                workout_type=w["workout_type"],
+                start=_ts(w["start"]), end=_ts(w["end"]),
+                metrics=w.get("metrics", {}), source=w.get("source"), id=w.get("id"),
+            )
+            for w in resp.json()["data"]
+        ]

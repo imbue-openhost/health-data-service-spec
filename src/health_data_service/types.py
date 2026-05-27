@@ -4,11 +4,13 @@ These attrs classes define the wire format for the OpenHost health-data
 service (github.com/imbue-openhost/openhost/services/health-data).
 Providers serialize these to JSON; consumers deserialize them.
 
-All timestamps are ISO 8601 strings in UTC (ending in +00:00).
+All timestamps are datetime.datetime objects (should be timezone-aware UTC).
+On the wire they are serialized as ISO 8601 strings.
 """
 
 from __future__ import annotations
 
+from datetime import datetime
 from enum import Enum
 
 import attr
@@ -33,13 +35,12 @@ class MetricType:
 class Sample:
     """A single numeric measurement at a point or interval in time."""
 
-    # ISO 8601 UTC start of the measurement
-    timestamp: str
+    timestamp: datetime
 
     value: float
 
     # If set, this sample covers the interval [timestamp, end_timestamp)
-    end_timestamp: str | None = None
+    end_timestamp: datetime | None = None
 
 
 @attr.s(auto_attribs=True, frozen=True)
@@ -73,22 +74,19 @@ class SleepStageInterval:
     # One of the SleepStage values
     stage: str
 
-    # ISO 8601 UTC
-    start: str
-
-    # ISO 8601 UTC
-    end: str
+    start: datetime
+    end: datetime
 
 
 @attr.s(auto_attribs=True, frozen=True)
 class SleepSession:
     """A complete sleep event (one night or nap)."""
 
-    # ISO 8601 UTC, typically bedtime
-    start: str
+    # Typically bedtime
+    start: datetime
 
-    # ISO 8601 UTC, typically wake time
-    end: str
+    # Typically wake time
+    end: datetime
 
     stages: list[SleepStageInterval] = attrs.Factory(list)
 
@@ -124,11 +122,8 @@ class Workout:
     # One of the WorkoutType values, or a free-form string
     workout_type: str
 
-    # ISO 8601 UTC
-    start: str
-
-    # ISO 8601 UTC
-    end: str
+    start: datetime
+    end: datetime
 
     # Summary metrics for this workout. Common keys:
     #   duration_s (seconds), distance_m (meters), calories (kcal),
