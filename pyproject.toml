@@ -5,6 +5,7 @@ description = "Types and client library for the OpenHost health-data service"
 requires-python = ">=3.11"
 dependencies = [
     "attrs>=23.0",
+    "cattrs>=24.0",
     "httpx>=0.27",
 ]
 

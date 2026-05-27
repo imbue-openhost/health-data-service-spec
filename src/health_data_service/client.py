@@ -2,8 +2,7 @@
 
 Usage::
 
-    from health_data_service import HealthDataClient
-    from health_data_service.request_types import TimeSeriesRequest
+    from health_data_service import HealthDataClient, TimeSeriesRequest
 
     async with HealthDataClient() as client:
         hr = await client.get_time_series(TimeSeriesRequest(metric="heart_rate", start=...))
@@ -19,16 +18,15 @@ different ``[[services.v2.consumes]].shortname``.
 from __future__ import annotations
 
 import os
-from datetime import datetime
 from types import TracebackType
 
+import cattrs
+from cattrs.preconf.json import make_converter
 import httpx
 
 from .data_types import (
     MetricType,
-    Sample,
     SleepSession,
-    SleepStageInterval,
     TimeSeries,
     Workout,
 )
@@ -38,13 +36,13 @@ from .request_types import (
     WorkoutsRequest,
 )
 
-
-def _ts(s: str) -> datetime:
-    return datetime.fromisoformat(s)
+converter = make_converter()
 
 
-def _ts_opt(s: str | None) -> datetime | None:
-    return datetime.fromisoformat(s) if s else None
+def _to_params(req: object) -> dict[str, str]:
+    """Unstructure an attrs request to query params, dropping None values."""
+    raw = cattrs.unstructure(req)
+    return {k: str(v) for k, v in raw.items() if v is not None}
 
 
 class HealthDataClient:
@@ -91,51 +89,19 @@ class HealthDataClient:
     async def list_metrics(self) -> list[MetricType]:
         resp = await self._http.get("/v1/metrics")
         resp.raise_for_status()
-        return [MetricType(**m) for m in resp.json()["metrics"]]
+        return converter.structure(resp.json()["metrics"], list[MetricType])
 
     async def get_time_series(self, req: TimeSeriesRequest) -> TimeSeries:
-        resp = await self._http.get("/v1/time-series", params=req.to_params())
+        resp = await self._http.get("/v1/time-series", params=_to_params(req))
         resp.raise_for_status()
-        body = resp.json()
-        return TimeSeries(
-            metric=body["metric"],
-            unit=body["unit"],
-            samples=[
-                Sample(
-                    timestamp=_ts(s["timestamp"]),
-                    value=s["value"],
-                    end_timestamp=_ts_opt(s.get("end_timestamp")),
-                )
-                for s in body.get("samples", [])
-            ],
-            source=body.get("source"),
-        )
+        return converter.structure(resp.json(), TimeSeries)
 
     async def get_sleep_sessions(self, req: SleepSessionsRequest) -> list[SleepSession]:
-        resp = await self._http.get("/v1/sleep-sessions", params=req.to_params())
+        resp = await self._http.get("/v1/sleep-sessions", params=_to_params(req))
         resp.raise_for_status()
-        results = []
-        for d in resp.json()["data"]:
-            stages = [
-                SleepStageInterval(
-                    stage=s["stage"], start=_ts(s["start"]), end=_ts(s["end"]),
-                )
-                for s in d.get("stages", [])
-            ]
-            results.append(SleepSession(
-                start=_ts(d["start"]), end=_ts(d["end"]), stages=stages,
-                metrics=d.get("metrics", {}), source=d.get("source"), id=d.get("id"),
-            ))
-        return results
+        return converter.structure(resp.json()["data"], list[SleepSession])
 
     async def get_workouts(self, req: WorkoutsRequest) -> list[Workout]:
-        resp = await self._http.get("/v1/workouts", params=req.to_params())
+        resp = await self._http.get("/v1/workouts", params=_to_params(req))
         resp.raise_for_status()
-        return [
-            Workout(
-                workout_type=w["workout_type"],
-                start=_ts(w["start"]), end=_ts(w["end"]),
-                metrics=w.get("metrics", {}), source=w.get("source"), id=w.get("id"),
-            )
-            for w in resp.json()["data"]
-        ]
+        return converter.structure(resp.json()["data"], list[Workout])
