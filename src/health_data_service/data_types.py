@@ -17,6 +17,22 @@ from typing import Any
 import attr
 import attrs
 
+## Metric catalog
+
+class MetricKind(str, Enum):
+    TIME_SERIES = "time_series"
+    SCALAR = "scalar"
+
+
+@attr.s(auto_attribs=True, frozen=True)
+class MetricType:
+    """Describes an available metric a provider can serve."""
+    metric_id: str
+    display_name: str
+    kind: MetricKind = MetricKind.TIME_SERIES
+    unit: str | None = None
+
+
 ## Samples
 
 @attr.s(auto_attribs=True, frozen=True)
