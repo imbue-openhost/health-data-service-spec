@@ -11,63 +11,52 @@ from __future__ import annotations
 
 from enum import Enum
 
+import attr
 import attrs
 
 
-# ---------------------------------------------------------------------------
-# Metric discovery
-# ---------------------------------------------------------------------------
-
-@attrs.define
+@attr.s(auto_attribs=True, frozen=True)
 class MetricType:
     """A metric the provider can serve."""
 
+    # Identifier used in queries, e.g. "heart_rate"
     name: str
-    """Identifier used in queries, e.g. ``"heart_rate"``."""
 
+    # Human-readable label, e.g. "Heart Rate"
     display_name: str
-    """Human-readable label, e.g. ``"Heart Rate"``."""
 
+    # Unit of measurement, e.g. "bpm", "ms", "%"
     unit: str
-    """Unit of measurement, e.g. ``"bpm"``, ``"ms"``, ``"%"``."""
 
 
-# ---------------------------------------------------------------------------
-# Time-series (generic numeric samples)
-# ---------------------------------------------------------------------------
-
-@attrs.define
+@attr.s(auto_attribs=True, frozen=True)
 class Sample:
     """A single numeric measurement at a point or interval in time."""
 
+    # ISO 8601 UTC start of the measurement
     timestamp: str
-    """ISO 8601 UTC start of the measurement."""
 
     value: float
 
+    # If set, this sample covers the interval [timestamp, end_timestamp)
     end_timestamp: str | None = None
-    """If set, this sample covers the interval [timestamp, end_timestamp)."""
 
 
-@attrs.define
+@attr.s(auto_attribs=True, frozen=True)
 class TimeSeries:
     """A sequence of samples for one metric."""
 
+    # Metric identifier, e.g. "heart_rate"
     metric: str
-    """Metric identifier, e.g. ``"heart_rate"``."""
 
+    # Unit of measurement, e.g. "bpm"
     unit: str
-    """Unit of measurement, e.g. ``"bpm"``."""
 
     samples: list[Sample]
 
+    # Data source identifier, e.g. "oura", "apple_health"
     source: str | None = None
-    """Data source identifier, e.g. ``"oura"``, ``"apple_health"``."""
 
-
-# ---------------------------------------------------------------------------
-# Sleep
-# ---------------------------------------------------------------------------
 
 class SleepStage(str, Enum):
     DEEP = "deep"
@@ -77,57 +66,45 @@ class SleepStage(str, Enum):
     UNKNOWN = "unknown"
 
 
-@attrs.define
+@attr.s(auto_attribs=True, frozen=True)
 class SleepStageInterval:
     """A contiguous period spent in one sleep stage."""
 
+    # One of the SleepStage values
     stage: str
-    """One of the ``SleepStage`` values."""
 
+    # ISO 8601 UTC
     start: str
-    """ISO 8601 UTC."""
 
+    # ISO 8601 UTC
     end: str
-    """ISO 8601 UTC."""
 
 
-@attrs.define
+@attr.s(auto_attribs=True, frozen=True)
 class SleepSession:
     """A complete sleep event (one night or nap)."""
 
+    # ISO 8601 UTC, typically bedtime
     start: str
-    """ISO 8601 UTC, typically bedtime."""
 
+    # ISO 8601 UTC, typically wake time
     end: str
-    """ISO 8601 UTC, typically wake time."""
 
     stages: list[SleepStageInterval] = attrs.Factory(list)
 
+    # Summary metrics for this session. Common keys:
+    #   total_sleep_duration (seconds), deep_sleep_duration (seconds),
+    #   light_sleep_duration (seconds), rem_sleep_duration (seconds),
+    #   awake_time (seconds), time_in_bed (seconds),
+    #   efficiency (percent 0-100), latency (seconds),
+    #   average_heart_rate (bpm), lowest_heart_rate (bpm),
+    #   average_hrv (ms), average_breath (breaths/min),
+    #   sleep_score (0-100, source-specific)
     metrics: dict[str, float] = attrs.Factory(dict)
-    """Summary metrics for this session. Common keys:
-
-    - ``total_sleep_duration`` (seconds)
-    - ``deep_sleep_duration`` (seconds)
-    - ``light_sleep_duration`` (seconds)
-    - ``rem_sleep_duration`` (seconds)
-    - ``awake_time`` (seconds)
-    - ``time_in_bed`` (seconds)
-    - ``efficiency`` (percent, 0-100)
-    - ``latency`` (seconds)
-    - ``average_heart_rate`` (bpm)
-    - ``lowest_heart_rate`` (bpm)
-    - ``average_hrv`` (ms)
-    - ``average_breath`` (breaths/min)
-    - ``sleep_score`` (0-100, source-specific)
-    """
 
     source: str | None = None
     id: str | None = None
 
-
-# ---------------------------------------------------------------------------
-# Workouts
-# ---------------------------------------------------------------------------
 
 class WorkoutType(str, Enum):
     RUNNING = "running"
@@ -140,30 +117,24 @@ class WorkoutType(str, Enum):
     OTHER = "other"
 
 
-@attrs.define
+@attr.s(auto_attribs=True, frozen=True)
 class Workout:
     """An exercise session."""
 
+    # One of the WorkoutType values, or a free-form string
     workout_type: str
-    """One of the ``WorkoutType`` values, or a free-form string."""
 
+    # ISO 8601 UTC
     start: str
-    """ISO 8601 UTC."""
 
+    # ISO 8601 UTC
     end: str
-    """ISO 8601 UTC."""
 
+    # Summary metrics for this workout. Common keys:
+    #   duration_s (seconds), distance_m (meters), calories (kcal),
+    #   average_heart_rate (bpm), max_heart_rate (bpm),
+    #   average_pace_s_per_km (seconds per km), elevation_gain_m (meters)
     metrics: dict[str, float] = attrs.Factory(dict)
-    """Summary metrics for this workout. Common keys:
-
-    - ``duration_s`` (seconds)
-    - ``distance_m`` (meters)
-    - ``calories`` (kcal)
-    - ``average_heart_rate`` (bpm)
-    - ``max_heart_rate`` (bpm)
-    - ``average_pace_s_per_km`` (seconds per km, for running/walking)
-    - ``elevation_gain_m`` (meters)
-    """
 
     source: str | None = None
     id: str | None = None
@@ -173,7 +144,7 @@ class Workout:
 # Serialization helpers
 # ---------------------------------------------------------------------------
 
-def to_dict(obj: attrs.Attribute) -> dict:
+def to_dict(obj) -> dict:
     """Convert an attrs instance to a JSON-serializable dict, dropping None values."""
     return attrs.asdict(obj, filter=lambda a, v: v is not None)
 
