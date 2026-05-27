@@ -196,49 +196,173 @@ class SleepSession(Container):
 
 
 # ---------------------------------------------------------------------------
-# Containers: Daily scores
+# Daily time series (one sample per day)
 # ---------------------------------------------------------------------------
 
+# Readiness
+
 @attr.s(auto_attribs=True, frozen=True)
-class DailyReadiness(Container):
-    """Daily readiness assessment (e.g. Oura readiness score)."""
-
-    score: Score | None = None
-
-    # Contributor scores (each 0-100)
-    activity_balance: Score | None = None
-    body_temperature: Score | None = None
-    hrv_balance: Score | None = None
-    previous_day_activity: Score | None = None
-    previous_night: Score | None = None
-    recovery_index: Score | None = None
-    resting_heart_rate: Score | None = None
-    sleep_balance: Score | None = None
-    sleep_regularity: Score | None = None
-
-    # Body signals
-    temperature_deviation: TemperatureDeviation | None = None
-    temperature_trend_deviation: TemperatureDeviation | None = None
-
-    source: str | None = None
+class ReadinessScore(TimeSeries):
+    metric_id: str = "readiness_score"
+    display_name: str = "Readiness Score"
+    unit: str | None = None
+    samples: list[Sample[float]] = attrs.Factory(list)
 
 
 @attr.s(auto_attribs=True, frozen=True)
-class DailySleepScore(Container):
-    """Daily sleep quality score with contributor breakdown."""
+class ReadinessActivityBalance(TimeSeries):
+    metric_id: str = "readiness_activity_balance"
+    display_name: str = "Activity Balance"
+    unit: str | None = None
+    samples: list[Sample[float]] = attrs.Factory(list)
 
-    score: Score | None = None
 
-    # Contributor scores (each 0-100)
-    deep_sleep: Score | None = None
-    efficiency: Score | None = None
-    latency: Score | None = None
-    rem_sleep: Score | None = None
-    restfulness: Score | None = None
-    timing: Score | None = None
-    total_sleep: Score | None = None
+@attr.s(auto_attribs=True, frozen=True)
+class ReadinessBodyTemperature(TimeSeries):
+    metric_id: str = "readiness_body_temperature"
+    display_name: str = "Body Temperature"
+    unit: str | None = None
+    samples: list[Sample[float]] = attrs.Factory(list)
 
-    source: str | None = None
+
+@attr.s(auto_attribs=True, frozen=True)
+class ReadinessHRVBalance(TimeSeries):
+    metric_id: str = "readiness_hrv_balance"
+    display_name: str = "HRV Balance"
+    unit: str | None = None
+    samples: list[Sample[float]] = attrs.Factory(list)
+
+
+@attr.s(auto_attribs=True, frozen=True)
+class ReadinessPreviousDayActivity(TimeSeries):
+    metric_id: str = "readiness_previous_day_activity"
+    display_name: str = "Previous Day Activity"
+    unit: str | None = None
+    samples: list[Sample[float]] = attrs.Factory(list)
+
+
+@attr.s(auto_attribs=True, frozen=True)
+class ReadinessPreviousNight(TimeSeries):
+    metric_id: str = "readiness_previous_night"
+    display_name: str = "Previous Night"
+    unit: str | None = None
+    samples: list[Sample[float]] = attrs.Factory(list)
+
+
+@attr.s(auto_attribs=True, frozen=True)
+class ReadinessRecoveryIndex(TimeSeries):
+    metric_id: str = "readiness_recovery_index"
+    display_name: str = "Recovery Index"
+    unit: str | None = None
+    samples: list[Sample[float]] = attrs.Factory(list)
+
+
+@attr.s(auto_attribs=True, frozen=True)
+class ReadinessRestingHeartRate(TimeSeries):
+    metric_id: str = "readiness_resting_heart_rate"
+    display_name: str = "Resting Heart Rate"
+    unit: str | None = None
+    samples: list[Sample[float]] = attrs.Factory(list)
+
+
+@attr.s(auto_attribs=True, frozen=True)
+class ReadinessSleepBalance(TimeSeries):
+    metric_id: str = "readiness_sleep_balance"
+    display_name: str = "Sleep Balance"
+    unit: str | None = None
+    samples: list[Sample[float]] = attrs.Factory(list)
+
+
+@attr.s(auto_attribs=True, frozen=True)
+class ReadinessSleepRegularity(TimeSeries):
+    metric_id: str = "readiness_sleep_regularity"
+    display_name: str = "Sleep Regularity"
+    unit: str | None = None
+    samples: list[Sample[float]] = attrs.Factory(list)
+
+
+# Body signals
+
+@attr.s(auto_attribs=True, frozen=True)
+class BodyTemperatureDeviation(TimeSeries):
+    metric_id: str = "temperature_deviation"
+    display_name: str = "Temperature Deviation"
+    unit: str = "°C"
+    samples: list[Sample[float]] = attrs.Factory(list)
+
+
+@attr.s(auto_attribs=True, frozen=True)
+class BodyTemperatureTrendDeviation(TimeSeries):
+    metric_id: str = "temperature_trend_deviation"
+    display_name: str = "Temperature Trend Deviation"
+    unit: str = "°C"
+    samples: list[Sample[float]] = attrs.Factory(list)
+
+
+# Sleep score
+
+@attr.s(auto_attribs=True, frozen=True)
+class SleepScore(TimeSeries):
+    metric_id: str = "sleep_score"
+    display_name: str = "Sleep Score"
+    unit: str | None = None
+    samples: list[Sample[float]] = attrs.Factory(list)
+
+
+@attr.s(auto_attribs=True, frozen=True)
+class SleepScoreDeepSleep(TimeSeries):
+    metric_id: str = "sleep_score_deep_sleep"
+    display_name: str = "Deep Sleep Score"
+    unit: str | None = None
+    samples: list[Sample[float]] = attrs.Factory(list)
+
+
+@attr.s(auto_attribs=True, frozen=True)
+class SleepScoreEfficiency(TimeSeries):
+    metric_id: str = "sleep_score_efficiency"
+    display_name: str = "Efficiency Score"
+    unit: str | None = None
+    samples: list[Sample[float]] = attrs.Factory(list)
+
+
+@attr.s(auto_attribs=True, frozen=True)
+class SleepScoreLatency(TimeSeries):
+    metric_id: str = "sleep_score_latency"
+    display_name: str = "Latency Score"
+    unit: str | None = None
+    samples: list[Sample[float]] = attrs.Factory(list)
+
+
+@attr.s(auto_attribs=True, frozen=True)
+class SleepScoreREMSleep(TimeSeries):
+    metric_id: str = "sleep_score_rem_sleep"
+    display_name: str = "REM Sleep Score"
+    unit: str | None = None
+    samples: list[Sample[float]] = attrs.Factory(list)
+
+
+@attr.s(auto_attribs=True, frozen=True)
+class SleepScoreRestfulness(TimeSeries):
+    metric_id: str = "sleep_score_restfulness"
+    display_name: str = "Restfulness Score"
+    unit: str | None = None
+    samples: list[Sample[float]] = attrs.Factory(list)
+
+
+@attr.s(auto_attribs=True, frozen=True)
+class SleepScoreTiming(TimeSeries):
+    metric_id: str = "sleep_score_timing"
+    display_name: str = "Timing Score"
+    unit: str | None = None
+    samples: list[Sample[float]] = attrs.Factory(list)
+
+
+@attr.s(auto_attribs=True, frozen=True)
+class SleepScoreTotalSleep(TimeSeries):
+    metric_id: str = "sleep_score_total_sleep"
+    display_name: str = "Total Sleep Score"
+    unit: str | None = None
+    samples: list[Sample[float]] = attrs.Factory(list)
 
 
 # ---------------------------------------------------------------------------
