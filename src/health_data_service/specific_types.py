@@ -12,7 +12,7 @@ from enum import Enum
 import attr
 import attrs
 
-from .data_types import Container, IntervalSample, Sample, ScalarMetric, TimeSeries
+from .data_types import Container, IntervalSample, RoutePoint, Sample, ScalarMetric, TimeSeries
 
 
 # ---------------------------------------------------------------------------
@@ -380,8 +380,8 @@ class Workout(Container):
     average_heart_rate: HeartRateAvg | None = None
     max_heart_rate: HeartRateAvg | None = None
 
-    # HR during workout
     heart_rate: HeartRate | None = None
+    route: list[RoutePoint] = attrs.Factory(list)
 
     source: str | None = None
     id: str | None = None

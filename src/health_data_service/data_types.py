@@ -103,20 +103,9 @@ class WorkoutType(str, Enum):
 
 
 @attr.s(auto_attribs=True, frozen=True)
-class Workout:
-    """An exercise session."""
-
-    # One of the WorkoutType values, or a free-form string
-    workout_type: str
-
-    start: datetime
-    end: datetime
-
-    # Summary metrics for this workout. Common keys:
-    #   duration_s (seconds), distance_m (meters), calories (kcal),
-    #   average_heart_rate (bpm), max_heart_rate (bpm),
-    #   average_pace_s_per_km (seconds per km), elevation_gain_m (meters)
-    metrics: dict[str, float] = attrs.Factory(dict)
-
-    source: str | None = None
-    id: str | None = None
+class RoutePoint:
+    """A single GPS point along a workout route."""
+    timestamp: datetime
+    lat: float
+    lon: float
+    altitude: float | None = None
