@@ -1,13 +1,17 @@
 from .data_types import (
+    Container,
+    IntervalSample,
     MetricKind,
     MetricType,
     Sample,
+    ScalarMetric,
+    TimeSeries,
+    WorkoutType,
+)
+from .specific_types import (
     SleepSession,
     SleepStage,
-    SleepStageInterval,
-    TimeSeries,
     Workout,
-    WorkoutType,
 )
 from .request_types import (
     SleepSessionsRequest,
@@ -17,14 +21,16 @@ from .request_types import (
 from .client import HealthDataClient
 
 __all__ = [
+    "Container",
     "HealthDataClient",
+    "IntervalSample",
     "MetricKind",
     "MetricType",
     "Sample",
+    "ScalarMetric",
     "SleepSession",
     "SleepSessionsRequest",
     "SleepStage",
-    "SleepStageInterval",
     "TimeSeries",
     "TimeSeriesRequest",
     "Workout",
