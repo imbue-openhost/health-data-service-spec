@@ -17,6 +17,8 @@ different ``[[services.v2.consumes]].shortname``.
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import os
 from types import TracebackType
 
@@ -38,7 +40,11 @@ from .request_types import (
     WorkoutsRequest,
 )
 
+log = logging.getLogger(__name__)
+
 converter = make_converter()
+
+SERVICE_URL = "github.com/imbue-openhost/health-data-service-spec"
 
 
 def _to_params(req: object) -> dict[str, str]:
@@ -62,11 +68,12 @@ class HealthDataClient:
         ).rstrip("/")
         self._app_token = app_token or os.environ["OPENHOST_APP_TOKEN"]
         self._shortname = shortname
+        self._base_url = f"{self._router_url}/api/services/v2/call/{self._shortname}"
         self._client: httpx.AsyncClient | None = None
 
     async def __aenter__(self) -> HealthDataClient:
         self._client = httpx.AsyncClient(
-            base_url=f"{self._router_url}/api/services/v2/call/{self._shortname}",
+            base_url=self._base_url,
             headers={"Authorization": f"Bearer {self._app_token}"},
             timeout=30,
         )
@@ -88,6 +95,10 @@ class HealthDataClient:
             raise RuntimeError("Use 'async with HealthDataClient() as client:'")
         return self._client
 
+    # ------------------------------------------------------------------
+    # Single-provider methods
+    # ------------------------------------------------------------------
+
     async def list_metrics(self) -> list[MetricType]:
         resp = await self._http.get("/v1/metrics")
         resp.raise_for_status()
@@ -107,3 +118,103 @@ class HealthDataClient:
         resp = await self._http.get("/v1/workouts", params=_to_params(req))
         resp.raise_for_status()
         return converter.structure(resp.json()["data"], list[Workout])
+
+    # ------------------------------------------------------------------
+    # Provider discovery + fan-out
+    # ------------------------------------------------------------------
+
+    async def discover_providers(self) -> list[dict]:
+        """Discover all providers of this service."""
+        try:
+            resp = await self._http.get(
+                f"{self._router_url}/api/services/v2/providers",
+                params={"service": SERVICE_URL},
+            )
+            if resp.status_code == 200:
+                return resp.json().get("providers", [])
+        except Exception:
+            log.exception("Provider discovery failed")
+        return []
+
+    async def _call_provider(
+        self, provider: dict, path: str, params: dict | None = None,
+    ) -> dict | None:
+        """Call a specific provider, return parsed JSON or None on failure."""
+        headers = {"X-OpenHost-Provider": provider["app_id"]}
+        try:
+            resp = await self._http.get(path, params=params, headers=headers)
+            if resp.status_code == 200:
+                return resp.json()
+        except Exception:
+            log.warning("Service call to %s failed", provider.get("app_name"))
+        return None
+
+    async def _fan_out(self, path: str, params: dict | None = None) -> list[dict]:
+        """Call all running providers in parallel, return list of JSON responses."""
+        providers = await self.discover_providers()
+        running = [p for p in providers if p.get("status") == "running"]
+
+        if not running:
+            resp = await self._http.get(path, params=params)
+            return [resp.json()] if resp.status_code == 200 else []
+
+        results = await asyncio.gather(
+            *[self._call_provider(p, path, params) for p in running]
+        )
+        return [r for r in results if r is not None]
+
+    async def list_metrics_merged(self) -> list[MetricType]:
+        results = await self._fan_out("/v1/metrics")
+        seen: set[str] = set()
+        merged: list[MetricType] = []
+        for r in results:
+            for m in converter.structure(r.get("metrics", []), list[MetricType]):
+                if m.metric_id not in seen:
+                    seen.add(m.metric_id)
+                    merged.append(m)
+        return merged
+
+    async def get_time_series_merged(self, req: TimeSeriesRequest) -> TimeSeries:
+        results = await self._fan_out("/v1/time-series", _to_params(req))
+        if not results:
+            return TimeSeries(
+                metric_id=req.metric, display_name=req.metric,
+                unit=None, samples=[], source="",
+            )
+        all_ts = [converter.structure(r, TimeSeries) for r in results]
+        first = all_ts[0]
+        all_samples = []
+        for ts in all_ts:
+            all_samples.extend(ts.samples)
+        all_samples.sort(key=lambda s: s.timestamp)
+        return TimeSeries(
+            metric_id=first.metric_id,
+            display_name=first.display_name,
+            unit=first.unit,
+            samples=all_samples,
+            source=first.source,
+        )
+
+    async def get_sleep_sessions_merged(self, req: SleepSessionsRequest) -> list[SleepSession]:
+        results = await self._fan_out("/v1/sleep-sessions", _to_params(req))
+        all_sessions: list[SleepSession] = []
+        for r in results:
+            all_sessions.extend(
+                converter.structure(r.get("data", []), list[SleepSession])
+            )
+        all_sessions.sort(key=lambda s: s.start, reverse=True)
+        if req.limit is not None:
+            all_sessions = all_sessions[:req.limit]
+        return all_sessions
+
+    async def get_workouts_merged(self, req: WorkoutsRequest) -> list[Workout]:
+        results = await self._fan_out("/v1/workouts", _to_params(req))
+        all_workouts: list[Workout] = []
+        for r in results:
+            all_workouts.extend(
+                converter.structure(r.get("data", []), list[Workout])
+            )
+        all_workouts.sort(key=lambda s: s.start, reverse=True)
+        if req.limit is not None:
+            all_workouts = all_workouts[:req.limit]
+        return all_workouts
