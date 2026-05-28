@@ -28,6 +28,7 @@ import httpx
 
 from .data_types import (
     MetricType,
+    Sample,
     TimeSeries,
 )
 from .specific_types import (
@@ -43,6 +44,18 @@ from .request_types import (
 log = logging.getLogger(__name__)
 
 converter = make_converter()
+
+# Register hooks so cattrs can structure generic Sample[T] from JSON.
+# TimeSeries samples are always float-valued; the generic parameter
+# can't be inferred from the JSON payload alone.
+def _structure_sample(val, _):
+    from datetime import datetime
+    ts = val["timestamp"]
+    if isinstance(ts, str):
+        ts = datetime.fromisoformat(ts)
+    return Sample(timestamp=ts, value=val["value"])
+
+converter.register_structure_hook(Sample, _structure_sample)
 
 SERVICE_URL = "github.com/imbue-openhost/health-data-service-spec"
 
