@@ -26,8 +26,10 @@ import httpx
 
 from .data_types import (
     MetricType,
-    SleepSession,
     TimeSeries,
+)
+from .specific_types import (
+    SleepSession,
     Workout,
 )
 from .request_types import (
